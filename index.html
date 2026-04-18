@@ -377,7 +377,7 @@ Extract job data from what the user tells you, confirm what to log, ask for anyt
     history.push({ role: 'user', content: text });
     const typing = addTyping();
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await fetch('https://mob2-proxy.mob2routeanalyst.workers.dev', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
