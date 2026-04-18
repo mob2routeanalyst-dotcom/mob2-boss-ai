@@ -159,7 +159,7 @@ function connectAPI() {
   document.getElementById('statusTxt').textContent = 'Connected';
   document.getElementById('setupArea').classList.add('hidden');
   document.getElementById('sendBtn').disabled = false;
-  addMsg('system', 'Connected and saved! You will not need to paste this again.');
+  addMsg('system', 'Connected and saved!');
   addMsg('ai', "Good. I'm your Boss AI. Tell me about a job, ask about invoices, or give me an update. What do you need?");
 }
 
@@ -194,6 +194,9 @@ function sendMessage() {
   input.style.height = 'auto';
   addMsg('user', text);
   history.push({ role: 'user', content: text });
+
+  addMsg('system', 'DEBUG: Sending to proxy... connected=' + connected + ' keyLen=' + apiKey.length);
+
   var typing = addTyping();
 
   fetch(PROXY_URL, {
@@ -201,9 +204,13 @@ function sendMessage() {
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 2048, system: agents[currentAgent].system, messages: history })
   })
-  .then(function(res) { return res.json(); })
+  .then(function(res) {
+    addMsg('system', 'DEBUG: Got response status ' + res.status);
+    return res.json();
+  })
   .then(function(data) {
     typing.remove();
+    addMsg('system', 'DEBUG: Data received - ' + JSON.stringify(data).substring(0, 100));
     if (data.error) { addMsg('system', 'Error: ' + data.error.message); return; }
     var reply = data.content[0].text;
     history.push({ role: 'assistant', content: reply });
@@ -223,7 +230,7 @@ function sendMessage() {
           addMsg('logged', 'Job logged to Airtable automatically!');
         }
       } catch(err) {
-        addMsg('system', 'Could not parse job data.');
+        addMsg('system', 'Could not parse job data: ' + err.message);
       }
     } else {
       addMsg('ai', reply);
@@ -231,7 +238,7 @@ function sendMessage() {
   })
   .catch(function(e) {
     typing.remove();
-    addMsg('system', 'Error: ' + e.message);
+    addMsg('system', 'FETCH ERROR: ' + e.message + ' | ' + e.toString());
   });
 }
 
