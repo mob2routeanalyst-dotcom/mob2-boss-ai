@@ -401,7 +401,7 @@ Extract job data from what the user tells you, confirm what to log, ask for anyt
   fetch(WEBHOOK_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ conversation: history, summary: reply })
+    body: JSON.stringify({ conversation: history, summary: reply, fullText: history.map(m => m.role + ': ' + m.content).join('\n') })
   });
 }
       addMsg('ai', reply);
