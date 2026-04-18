@@ -1,248 +1,295 @@
-import { useState, useRef, useEffect } from "react";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>MOB2 Boss AI</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { background: #0a0a0a; color: #e8e8e8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+  .header { background: #111; border-bottom: 2px solid #FF6B00; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .logo { font-size: 20px; font-weight: 900; letter-spacing: 2px; color: #FF6B00; }
+  .logo span { color: #e8e8e8; }
+  .status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #888; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #ff4444; transition: all 0.3s; }
+  .dot.on { background: #00ff88; box-shadow: 0 0 6px #00ff88; }
+  .tabs { background: #111; border-bottom: 1px solid #222; display: flex; overflow-x: auto; flex-shrink: 0; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: 1; min-width: 70px; padding: 10px 8px; border: none; background: transparent; color: #666; font-size: 11px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+  .tab.active { color: #FF6B00; border-bottom-color: #FF6B00; }
+  .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; -webkit-overflow-scrolling: touch; }
+  .msg { display: flex; flex-direction: column; gap: 3px; }
+  .msg.user { align-items: flex-end; }
+  .msg-label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 1px; padding: 0 4px; }
+  .msg.ai .msg-label { color: #FF6B00; }
+  .msg-bubble { padding: 10px 14px; border-radius: 12px; font-size: 15px; line-height: 1.5; max-width: 88%; white-space: pre-wrap; }
+  .msg.user .msg-bubble { background: #1e3a5f; border-bottom-right-radius: 4px; }
+  .msg.ai .msg-bubble { background: #1a1a1a; border: 1px solid #2a2a2a; border-bottom-left-radius: 4px; }
+  .msg.system .msg-bubble { background: transparent; color: #00ff88; font-size: 12px; font-family: monospace; border-left: 2px solid #00ff88; border-radius: 0; padding: 6px 10px; }
+  .msg.logged .msg-bubble { background: transparent; color: #FF6B00; font-size: 12px; font-family: monospace; border-left: 2px solid #FF6B00; border-radius: 0; padding: 6px 10px; }
+  .typing-bubble { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; border-bottom-left-radius: 4px; padding: 12px 16px; display: flex; gap: 4px; width: fit-content; }
+  .typing-bubble span { width: 6px; height: 6px; background: #FF6B00; border-radius: 50%; animation: bounce 1.2s infinite; }
+  .typing-bubble span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-bubble span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+  .quick-row { padding: 8px 16px; display: flex; gap: 8px; overflow-x: auto; flex-shrink: 0; scrollbar-width: none; background: #0a0a0a; }
+  .quick-row::-webkit-scrollbar { display: none; }
+  .quick-btn { white-space: nowrap; padding: 7px 14px; background: #1a1a1a; border: 1px solid #2a2a2a; color: #aaa; font-size: 13px; border-radius: 20px; cursor: pointer; transition: all 0.15s; }
+  .quick-btn:active { background: #FF6B00; color: #000; border-color: #FF6B00; }
+  .input-area { padding: 10px 16px 20px; background: #111; border-top: 1px solid #222; flex-shrink: 0; }
+  .setup-area { padding: 10px 16px; background: #1a1a1a; border-bottom: 1px solid #222; flex-shrink: 0; display: flex; gap: 8px; align-items: center; }
+  .setup-area.hidden { display: none; }
+  .api-input { flex: 1; background: #0a0a0a; border: 1px solid #333; color: #e8e8e8; padding: 10px 12px; font-size: 13px; border-radius: 8px; outline: none; }
+  .api-input::placeholder { color: #555; }
+  .connect-btn { background: #FF6B00; color: #000; border: none; padding: 10px 18px; font-weight: 700; font-size: 13px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+  .input-row { display: flex; gap: 8px; align-items: flex-end; }
+  .chat-input { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #e8e8e8; padding: 12px 14px; font-size: 15px; border-radius: 22px; outline: none; resize: none; max-height: 100px; line-height: 1.4; font-family: inherit; }
+  .chat-input::placeholder { color: #555; }
+  .mic-btn, .send-btn { width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; }
+  .mic-btn { background: #1a1a1a; border: 1px solid #333; }
+  .mic-btn.recording { background: #ff4444; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+  .send-btn { background: #FF6B00; color: #000; }
+  .send-btn:disabled { background: #333; color: #666; }
+</style>
+</head>
+<body>
 
-const agentProfiles = {
-  boss: {
-    title: "BOSS AI — COMMAND CENTER",
-    desc: "Tell me about a job, ask for a report, or give me an update. I'll delegate to the right department.",
-    icon: "👔",
-    system: `You are the Boss AI for MOB2 Pilot Car Company, a professional pilot car/escort vehicle business. You manage a virtual workgroup with these departments: Dispatcher (routes, jobs, scheduling), Data Entry Clerk (logging trips to Airtable), and Billing Agent (invoices, payments).
+<div class="header">
+  <div class="logo">MOB2 <span>PILOT CAR</span></div>
+  <div class="status">
+    <div class="dot" id="dot"></div>
+    <span id="statusTxt">Tap key to connect</span>
+  </div>
+</div>
 
-Your Airtable database has these tables:
-- Routes: Date, Vehicle, Driver, Start Time, End Time, Start Mileage, End Mileage, Total Mileage, Total Cost, Notes, Performance Rating, Service Type, Status, Stops, Scheduled Jobs
-- Stops, Vehicles, Clients, Contracts, Invoices, Expenses, Rate Sheet, Time Log
+<div class="setup-area" id="setupArea">
+  <input class="api-input" type="password" id="apiInput" placeholder="Paste Anthropic API key (saved forever)" />
+  <button class="connect-btn" onclick="connectAPI()">Connect</button>
+</div>
 
-When the user gives you job info, extract all relevant data and confirm what you'd log. Be direct, professional, and efficient. Ask for missing info. You are running a tight ship.`
-  },
-  dispatch: {
-    title: "DISPATCHER — ROUTES & JOBS",
-    desc: "Assign jobs, plan routes, track loads and schedules.",
-    icon: "📋",
-    system: `You are the Dispatcher for MOB2 Pilot Car Company. Handle route assignments, job scheduling, load types, and movement tracking. When given job details, organize them clearly: origin, destination, load type, timing, permits needed. Be efficient and precise.`
-  },
-  data: {
-    title: "DATA CLERK — AIRTABLE LOGGER",
-    desc: "Format and log trip data into the right Airtable fields.",
-    icon: "🗂️",
-    system: `You are the Data Entry Clerk for MOB2 Pilot Car Company. Take raw job info and format it perfectly for Airtable entry. Output a clean structured summary showing exactly what goes in each field: Date, Driver, Vehicle, Start Time, End Time, Start Mileage, End Mileage, Total Mileage, Service Type, Status, Notes.`
-  },
-  billing: {
-    title: "BILLING AGENT — INVOICES & PAYMENTS",
-    desc: "Generate invoices, track payments, manage the Rate Sheet.",
-    icon: "💰",
-    system: `You are the Billing Agent for MOB2 Pilot Car Company. Handle invoice creation, payment tracking, and rate calculations. Calculate charges based on mileage and service type. Flag unpaid invoices. Draft professional invoices. Be accurate with numbers.`
-  }
+<div class="tabs">
+  <button class="tab active" onclick="switchAgent('boss', this)">&#x1F454; Boss</button>
+  <button class="tab" onclick="switchAgent('dispatch', this)">&#x1F4CB; Dispatch</button>
+  <button class="tab" onclick="switchAgent('data', this)">&#x1F5C2; Data</button>
+  <button class="tab" onclick="switchAgent('billing', this)">&#x1F4B0; Billing</button>
+</div>
+
+<div class="messages" id="messages">
+  <div class="msg system">
+    <div class="msg-bubble" id="welcomeMsg">&#x26A1; MOB2 Workgroup ready. Paste your API key above to activate.</div>
+  </div>
+</div>
+
+<div class="quick-row">
+  <button class="quick-btn" onclick="quickSend('Log a completed job')">+ Log Job</button>
+  <button class="quick-btn" onclick="quickSend('What invoices are unpaid?')">Unpaid Invoices</button>
+  <button class="quick-btn" onclick="quickSend('What jobs are scheduled?')">Schedule</button>
+  <button class="quick-btn" onclick="quickSend('Weekly summary')">Weekly Summary</button>
+  <button class="quick-btn" onclick="quickSend('Create an invoice')">+ Invoice</button>
+</div>
+
+<div class="input-area">
+  <div class="input-row">
+    <textarea class="chat-input" id="chatInput" placeholder="Message your Boss AI..." rows="1" oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()">&#x1F3A4;</button>
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>&#x2191;</button>
+  </div>
+</div>
+
+<script>
+var WEBHOOK_URL = 'https://hook.us2.make.com/stsh4uhkans058txtz5kyejdxp9va3dc';
+var PROXY_URL = 'https://mob2-proxy.mob2routeanalyst.workers.dev';
+
+var apiKey = localStorage.getItem('mob2_api_key') || '';
+var connected = false;
+var currentAgent = 'boss';
+var history = [];
+var recognition = null;
+var isRecording = false;
+
+var bossSys = 'You are the Boss AI for MOB2 Pilot Car Company, a professional pilot car/escort vehicle business. '
+  + 'When a user tells you about a completed job, extract all details and confirm with them. '
+  + 'Once they confirm, you MUST end your response with exactly this block:\n\n'
+  + 'AIRTABLE_DATA:\n'
+  + '{\n'
+  + '  "routeName": "route description",\n'
+  + '  "date": "YYYY-MM-DD",\n'
+  + '  "driver": "driver name",\n'
+  + '  "vehicle": "vehicle/unit number",\n'
+  + '  "totalMileage": 0,\n'
+  + '  "billableMiles": 0,\n'
+  + '  "deadheadMiles": 0,\n'
+  + '  "payment": 0.00,\n'
+  + '  "serviceType": "type of service",\n'
+  + '  "status": "Completed",\n'
+  + '  "client": "client name",\n'
+  + '  "notes": "any additional notes"\n'
+  + '}\n\n'
+  + 'Always ask for missing fields first. Once you have ALL info, output AIRTABLE_DATA. Never skip this. No exceptions.';
+
+var dispatchSys = 'You are the Dispatcher for MOB2 Pilot Car Company. Handle route assignments, job scheduling, load types, movement tracking. Be efficient and precise.';
+var dataSys = 'You are the Data Entry Clerk for MOB2 Pilot Car Company. Format raw job info for Airtable entry cleanly and precisely.';
+var billingSys = 'You are the Billing Agent for MOB2 Pilot Car Company. Handle invoices, payment tracking, rate calculations. Flag unpaid invoices. Draft professional invoices.';
+
+var agents = {
+  boss: { system: bossSys },
+  dispatch: { system: dispatchSys },
+  data: { system: dataSys },
+  billing: { system: billingSys }
 };
 
-export default function MOB2BossAI() {
-  const [apiKey, setApiKey] = useState("");
-  const [connected, setConnected] = useState(false);
-  const [currentAgent, setCurrentAgent] = useState("boss");
-  const [messages, setMessages] = useState([
-    { type: "system", text: "⚡ MOB2 Workgroup initialized. Paste your API key above and hit CONNECT to activate your AI team." }
-  ]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState([]);
-  const [recording, setRecording] = useState(false);
-  const messagesEndRef = useRef(null);
-  const recognitionRef = useRef(null);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  function connect() {
-    if (!apiKey.startsWith("sk-ant-")) {
-      addMsg("system", "⚠️ Invalid key. Should start with sk-ant-...");
-      return;
-    }
-    setConnected(true);
-    addMsg("system", "✅ Connected! Your MOB2 AI workgroup is active.");
-    addMsg("boss", "Good. I'm your Boss AI. Tell me about a job you ran, ask me to check invoices, or give me an update on MOB2. What do you need?");
-  }
-
-  function addMsg(type, text) {
-    setMessages(prev => [...prev, { type, text }]);
-  }
-
-  function switchAgent(agent) {
-    setCurrentAgent(agent);
-    setHistory([]);
-    setMessages(prev => [...prev, { type: "system", text: `⚡ Switched to ${agentProfiles[agent].title}` }]);
-  }
-
-  async function send(text) {
-    if (!connected) { addMsg("system", "⚠️ Connect your API key first."); return; }
-    if (!text.trim()) return;
-    setInput("");
-    addMsg("user", text);
-    const newHistory = [...history, { role: "user", content: text }];
-    setHistory(newHistory);
-    setLoading(true);
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01"
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5",
-          max_tokens: 1024,
-          system: agentProfiles[currentAgent].system,
-          messages: newHistory
-        })
-      });
-      const data = await res.json();
-      if (data.error) { addMsg("system", `⚠️ ${data.error.message}`); setLoading(false); return; }
-      const reply = data.content[0].text;
-      setHistory([...newHistory, { role: "assistant", content: reply }]);
-      addMsg("boss", reply);
-    } catch (e) {
-      addMsg("system", `⚠️ Error: ${e.message}`);
-    }
-    setLoading(false);
-  }
-
-  function toggleMic() {
-    if (!("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
-      addMsg("system", "⚠️ Voice not supported. Use Chrome.");
-      return;
-    }
-    if (recording) {
-      recognitionRef.current?.stop();
-      return;
-    }
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const r = new SR();
-    r.lang = "en-US";
-    r.continuous = false;
-    r.interimResults = true;
-    r.onstart = () => setRecording(true);
-    r.onresult = (e) => {
-      const t = Array.from(e.results).map(x => x[0].transcript).join("");
-      setInput(t);
-    };
-    r.onend = () => {
-      setRecording(false);
-      setInput(prev => { if (prev.trim()) send(prev); return ""; });
-    };
-    r.onerror = (e) => {
-      setRecording(false);
-      addMsg("system", `⚠️ Mic error: ${e.error}. Allow microphone access in your browser.`);
-    };
-    recognitionRef.current = r;
-    r.start();
-  }
-
-  const agent = agentProfiles[currentAgent];
-
-  return (
-    <div style={{ fontFamily: "'IBM Plex Sans', sans-serif", background: "#0a0a0a", color: "#e8e8e8", height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
-      {/* TOP BAR */}
-      <div style={{ background: "#111", borderBottom: "2px solid #FF6B00", padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-        <div style={{ fontFamily: "monospace", fontSize: "22px", fontWeight: "bold", letterSpacing: "3px", color: "#FF6B00" }}>
-          MOB2 <span style={{ color: "#e8e8e8" }}>PILOT CAR CO.</span>
-        </div>
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          {Object.entries(agentProfiles).map(([key, a]) => (
-            <button key={key} onClick={() => switchAgent(key)} style={{ background: currentAgent === key ? "#FF6B00" : "transparent", color: currentAgent === key ? "#000" : "#888", border: `1px solid ${currentAgent === key ? "#FF6B00" : "#333"}`, padding: "4px 10px", cursor: "pointer", borderRadius: "2px", fontSize: "12px", fontFamily: "monospace" }}>
-              {a.icon} {key.toUpperCase()}
-            </button>
-          ))}
-          <div style={{ fontFamily: "monospace", fontSize: "11px", marginLeft: "12px" }}>
-            <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: connected ? "#00ff88" : "#ff4444", marginRight: "6px", boxShadow: connected ? "0 0 6px #00ff88" : "none" }}></span>
-            {connected ? "CONNECTED" : "NOT CONNECTED"}
-          </div>
-        </div>
-      </div>
-
-      {/* API KEY BAR */}
-      <div style={{ background: "#1a1a1a", borderBottom: "1px solid #2a2a2a", padding: "10px 20px", display: "flex", gap: "10px", alignItems: "center", flexShrink: 0 }}>
-        <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#FF6B00", whiteSpace: "nowrap" }}>🔑 ANTHROPIC API KEY</span>
-        <input
-          type="password"
-          placeholder="Paste your sk-ant-... key here (stays private)"
-          value={connected ? "●●●●●●●●●●●●●●●●●●●●" : apiKey}
-          onChange={e => !connected && setApiKey(e.target.value)}
-          style={{ flex: 1, background: "#0a0a0a", border: "1px solid #2a2a2a", color: "#e8e8e8", padding: "8px 12px", fontFamily: "monospace", fontSize: "12px", borderRadius: "2px", outline: "none" }}
-        />
-        <button onClick={connect} style={{ background: "#FF6B00", color: "#000", border: "none", padding: "8px 20px", fontFamily: "monospace", fontWeight: "bold", fontSize: "13px", cursor: "pointer", borderRadius: "2px" }}>
-          CONNECT
-        </button>
-      </div>
-
-      {/* CHAT HEADER */}
-      <div style={{ background: "#111", borderBottom: "1px solid #2a2a2a", padding: "12px 20px", flexShrink: 0 }}>
-        <div style={{ fontFamily: "monospace", fontSize: "16px", fontWeight: "bold", color: "#FF6B00" }}>{agent.title}</div>
-        <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>{agent.desc}</div>
-      </div>
-
-      {/* MESSAGES */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "14px" }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: m.type === "user" ? "flex-end" : "flex-start" }}>
-            <div style={{ fontFamily: "monospace", fontSize: "10px", color: m.type === "boss" ? "#FF6B00" : "#555", textTransform: "uppercase", letterSpacing: "1px" }}>
-              {m.type === "user" ? "YOU" : m.type === "system" ? "SYSTEM" : agent.title.split("—")[0].trim()}
-            </div>
-            <div style={{
-              padding: "10px 14px", borderRadius: "2px", fontSize: "14px", lineHeight: "1.6", maxWidth: "80%",
-              background: m.type === "user" ? "#1a1a1a" : m.type === "system" ? "transparent" : "#111",
-              borderLeft: `3px solid ${m.type === "user" ? "#555" : m.type === "system" ? "#00ff88" : "#FF6B00"}`,
-              color: m.type === "system" ? "#00ff88" : "#e8e8e8",
-              fontFamily: m.type === "system" ? "monospace" : "inherit",
-              fontSize: m.type === "system" ? "12px" : "14px",
-              whiteSpace: "pre-wrap"
-            }}>
-              {m.text}
-            </div>
-          </div>
-        ))}
-        {loading && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <div style={{ fontFamily: "monospace", fontSize: "10px", color: "#FF6B00" }}>THINKING...</div>
-            <div style={{ padding: "10px 14px", background: "#111", borderLeft: "3px solid #FF6B00", borderRadius: "2px", display: "flex", gap: "6px" }}>
-              {[0, 1, 2].map(i => (
-                <span key={i} style={{ width: "6px", height: "6px", background: "#FF6B00", borderRadius: "50%", display: "inline-block", animation: "bounce 1.2s infinite", animationDelay: `${i * 0.2}s` }}></span>
-              ))}
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* QUICK ACTIONS */}
-      <div style={{ padding: "10px 20px 0", background: "#111", display: "flex", gap: "8px", flexWrap: "wrap" }}>
-        {["+ Log Job", "Unpaid Invoices", "Schedule", "Weekly Summary", "+ Invoice"].map(q => (
-          <button key={q} onClick={() => send(q)} style={{ fontFamily: "monospace", fontSize: "11px", padding: "5px 12px", background: "#1a1a1a", border: "1px solid #2a2a2a", color: "#888", cursor: "pointer", borderRadius: "2px" }}>
-            {q}
-          </button>
-        ))}
-      </div>
-
-      {/* INPUT */}
-      <div style={{ padding: "12px 20px", background: "#111", borderTop: "1px solid #2a2a2a", display: "flex", gap: "10px" }}>
-        <textarea
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
-          placeholder="Talk to your Boss AI... (Enter to send)"
-          style={{ flex: 1, background: "#0a0a0a", border: "1px solid #2a2a2a", color: "#e8e8e8", padding: "10px 14px", fontFamily: "inherit", fontSize: "14px", borderRadius: "2px", outline: "none", resize: "none", height: "46px" }}
-        />
-        <button onClick={toggleMic} style={{ background: recording ? "#ff4444" : "#1a1a1a", color: recording ? "#fff" : "#888", border: `1px solid ${recording ? "#ff4444" : "#2a2a2a"}`, padding: "0 16px", fontSize: "20px", cursor: "pointer", borderRadius: "2px", animation: recording ? "pulse 1s infinite" : "none" }}>
-          {recording ? "🔴" : "🎤"}
-        </button>
-        <button onClick={() => send(input)} disabled={!connected || loading} style={{ background: connected ? "#FF6B00" : "#2a2a2a", color: connected ? "#000" : "#555", border: "none", padding: "0 24px", fontFamily: "monospace", fontWeight: "bold", fontSize: "14px", cursor: connected ? "pointer" : "not-allowed", borderRadius: "2px" }}>
-          SEND
-        </button>
-      </div>
-
-      <style>{`
-        @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-      `}</style>
-    </div>
-  );
+if (apiKey) {
+  connected = true;
+  document.getElementById('dot').classList.add('on');
+  document.getElementById('statusTxt').textContent = 'Connected';
+  document.getElementById('setupArea').classList.add('hidden');
+  document.getElementById('sendBtn').disabled = false;
+  document.getElementById('welcomeMsg').textContent = 'Welcome back! MOB2 workgroup is active.';
+  addMsg('ai', "Good. I'm your Boss AI. Tell me about a job, ask about invoices, or give me an update. What do you need?");
 }
+
+function connectAPI() {
+  var key = document.getElementById('apiInput').value.trim();
+  if (!key.startsWith('sk-ant-')) { alert('Invalid key. Should start with sk-ant-'); return; }
+  apiKey = key;
+  localStorage.setItem('mob2_api_key', apiKey);
+  connected = true;
+  document.getElementById('dot').classList.add('on');
+  document.getElementById('statusTxt').textContent = 'Connected';
+  document.getElementById('setupArea').classList.add('hidden');
+  document.getElementById('sendBtn').disabled = false;
+  addMsg('system', 'Connected and saved! You will not need to paste this again.');
+  addMsg('ai', "Good. I'm your Boss AI. Tell me about a job, ask about invoices, or give me an update. What do you need?");
+}
+
+function switchAgent(agent, btn) {
+  currentAgent = agent;
+  history = [];
+  document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  addMsg('system', 'Switched to ' + btn.textContent.trim());
+}
+
+function quickSend(text) {
+  document.getElementById('chatInput').value = text;
+  sendMessage();
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+function sendMessage() {
+  if (!connected) { alert('Connect your API key first.'); return; }
+  var input = document.getElementById('chatInput');
+  var text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.style.height = 'auto';
+  addMsg('user', text);
+  history.push({ role: 'user', content: text });
+  var typing = addTyping();
+
+  fetch(PROXY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 2048, system: agents[currentAgent].system, messages: history })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    typing.remove();
+    if (data.error) { addMsg('system', 'Error: ' + data.error.message); return; }
+    var reply = data.content[0].text;
+    history.push({ role: 'assistant', content: reply });
+
+    if (reply.includes('AIRTABLE_DATA:')) {
+      var parts = reply.split('AIRTABLE_DATA:');
+      addMsg('ai', parts[0].trim());
+      try {
+        var jsonMatch = parts[1].match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          var jobData = JSON.parse(jsonMatch[0]);
+          fetch(WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(jobData)
+          });
+          addMsg('logged', 'Job logged to Airtable automatically!');
+        }
+      } catch(err) {
+        addMsg('system', 'Could not parse job data.');
+      }
+    } else {
+      addMsg('ai', reply);
+    }
+  })
+  .catch(function(e) {
+    typing.remove();
+    addMsg('system', 'Error: ' + e.message);
+  });
+}
+
+function addMsg(type, text) {
+  var msgs = document.getElementById('messages');
+  var div = document.createElement('div');
+  var cls = type === 'user' ? 'user' : type === 'system' ? 'system' : type === 'logged' ? 'logged' : 'ai';
+  div.className = 'msg ' + cls;
+  var label = type === 'user' ? 'You' : type === 'ai' ? 'Boss AI' : '';
+  if (label) {
+    div.innerHTML = '<div class="msg-label">' + label + '</div><div class="msg-bubble">' + text.replace(/\n/g,'<br>') + '</div>';
+  } else {
+    div.innerHTML = '<div class="msg-bubble">' + text + '</div>';
+  }
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function addTyping() {
+  var msgs = document.getElementById('messages');
+  var div = document.createElement('div');
+  div.className = 'msg ai';
+  div.innerHTML = '<div class="msg-label">Boss AI</div><div class="typing-bubble"><span></span><span></span><span></span></div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function toggleMic() {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    addMsg('system', 'Voice requires Chrome browser.');
+    return;
+  }
+  if (isRecording) { recognition.stop(); return; }
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'en-US';
+  recognition.continuous = true;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  var micBtn = document.getElementById('micBtn');
+  recognition.onstart = function() { isRecording = true; micBtn.classList.add('recording'); micBtn.textContent = 'stop'; };
+  recognition.onresult = function(e) { document.getElementById('chatInput').value = e.results[e.results.length-1][0].transcript; };
+  recognition.onend = function() {
+    isRecording = false;
+    micBtn.classList.remove('recording');
+    micBtn.textContent = String.fromCodePoint(0x1F3A4);
+    var text = document.getElementById('chatInput').value.trim();
+    if (text) sendMessage();
+  };
+  recognition.onerror = function() {
+    isRecording = false;
+    micBtn.classList.remove('recording');
+    micBtn.textContent = String.fromCodePoint(0x1F3A4);
+  };
+  recognition.start();
+}
+</script>
+</body>
+</html>
