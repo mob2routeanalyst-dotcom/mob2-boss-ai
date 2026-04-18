@@ -121,21 +121,19 @@ When a user tells you about a completed job, extract all details and confirm wit
 
 AIRTABLE_DATA:
 {
-  "routeName": "route name or description",
+  "routeName": "route description",
   "date": "YYYY-MM-DD",
   "driver": "driver name",
   "vehicle": "vehicle/unit number",
-  "startTime": "HH:MM",
-  "endTime": "HH:MM",
-  "startMileage": 00000,
-  "endMileage": 00000,
   "totalMileage": 000,
+  "billableMiles": 000,
+  "deadheadMiles": 000,
+  "payment": 000.00,
   "serviceType": "type of service",
   "status": "Completed",
   "client": "client name",
   "notes": "any additional notes"
 }
-
 Always ask for any missing fields first. Once you have ALL the information, you MUST end your response with AIRTABLE_DATA: followed by the JSON. Never skip this step. No exceptions.
     },
     dispatch: {
