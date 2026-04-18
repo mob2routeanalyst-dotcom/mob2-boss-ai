@@ -397,6 +397,13 @@ Extract job data from what the user tells you, confirm what to log, ask for anyt
       if (data.error) { addMsg('system', `⚠️ ${data.error.message}`); return; }
       const reply = data.content[0].text;
       history.push({ role: 'assistant', content: reply });
+      if (reply.toLowerCase().includes('confirm') || reply.toLowerCase().includes('logged') || reply.toLowerCase().includes('summary')) {
+  fetch(WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ conversation: history, summary: reply })
+  });
+}
       addMsg('ai', reply);
     } catch (e) {
       typing.remove();
