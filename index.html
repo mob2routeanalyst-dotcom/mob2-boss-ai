@@ -43,10 +43,10 @@ body { background:#0a0a0a; color:#e8e8e8; font-family:-apple-system,sans-serif; 
 .input-row { display:flex; gap:8px; align-items:flex-end; }
 .chat-input { flex:1; background:#1a1a1a; border:1px solid #333; color:#e8e8e8; padding:12px 14px; font-size:15px; border-radius:22px; outline:none; resize:none; max-height:100px; line-height:1.4; font-family:inherit; }
 .chat-input::placeholder { color:#555; }
-.mic-btn, .send-btn { width:46px; height:46px; border-radius:50%; border:none; cursor:pointer; font-size:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.mic-btn { background:#1a1a1a; border:1px solid #333; }
-.mic-btn.recording { background:#ff4444; }
-.send-btn { background:#FF6B00; color:#000; }
+.mic-btn, .send-btn { width:46px; height:46px; border-radius:50%; border:none; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.mic-btn { background:#1a1a1a; border:1px solid #333; color:#888; }
+.mic-btn.recording { background:#ff4444; color:#fff; }
+.send-btn { background:#FF6B00; color:#000; font-weight:bold; }
 .send-btn:disabled { background:#333; color:#666; }
 </style>
 </head>
@@ -90,7 +90,7 @@ body { background:#0a0a0a; color:#e8e8e8; font-family:-apple-system,sans-serif; 
   <div class="input-row">
     <textarea class="chat-input" id="chatInput" placeholder="Message your Boss AI..." rows="1" oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
     <button class="mic-btn" id="micBtn" onclick="toggleMic()">mic</button>
-    <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>up</button>
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>^</button>
   </div>
 </div>
 
@@ -100,7 +100,7 @@ var PROXY_URL = 'https://mob2-proxy.mob2routeanalyst.workers.dev';
 var apiKey = localStorage.getItem('mob2_api_key') || '';
 var connected = false;
 var currentAgent = 'boss';
-var history = [];
+var chatHistory = [];
 var recognition = null;
 var isRecording = false;
 
@@ -139,7 +139,7 @@ function connectAPI() {
 
 function switchAgent(agent, btn) {
   currentAgent = agent;
-  history = [];
+  chatHistory = [];
   document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
   btn.classList.add('active');
   addMsg('system', 'Switched to ' + agent);
@@ -157,7 +157,7 @@ function sendMessage() {
   input.value = '';
   input.style.height = 'auto';
   addMsg('user', text);
-  history.push({role:'user', content:text});
+  chatHistory.push({role:'user', content:text});
   var typing = addTyping();
 
   fetch(PROXY_URL, {
@@ -171,7 +171,7 @@ function sendMessage() {
       model: 'claude-sonnet-4-5',
       max_tokens: 2048,
       system: systems[currentAgent],
-      messages: history
+      messages: chatHistory
     })
   })
   .then(function(r) { return r.json(); })
@@ -179,7 +179,7 @@ function sendMessage() {
     typing.remove();
     if (data.error) { addMsg('system', 'Error: ' + data.error.message); return; }
     var reply = data.content[0].text;
-    history.push({role:'assistant', content:reply});
+    chatHistory.push({role:'assistant', content:reply});
     if (reply.indexOf('AIRTABLE_DATA:') !== -1) {
       var parts = reply.split('AIRTABLE_DATA:');
       addMsg('ai', parts[0].trim());
