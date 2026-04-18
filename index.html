@@ -435,7 +435,7 @@ Extract job data from what the user tells you, confirm what to log, ask for anyt
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SR();
     recognition.lang = 'en-US';
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = false;
     const micBtn = document.getElementById('micBtn');
     recognition.onstart = () => { isRecording = true; micBtn.classList.add('recording'); micBtn.textContent = '🔴'; };
