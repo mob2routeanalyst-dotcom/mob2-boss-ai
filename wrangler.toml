@@ -1,0 +1,6 @@
+name = "mob2"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mob2"
+database_id = "4b7c6fa8-b023-4036-8997-c89b68781558"
